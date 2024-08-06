@@ -1,0 +1,19 @@
+---
+title: "Potts_Data_Science_Assessment"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Question 1
+#### Q1 (a) Using R or Python scrape the wikipedia page on natural disasters: https://en.wikipedia.org/wiki/List_of_natural_disasters_by_death_toll for the tables of the 20th and 21st century all cause disasters into a data frame, tibble or pandas data frame.
+
+
+#### Q1 (b) Convert the death toll to numbers using the midpoints when a range is given and the bound when an upper or lower bound is given (example 20,000+ converts to 20000).
+
+#### Q1 (c) Merge the 20th and 21st century data frames and plot the death toll (vertical / y axis) by year (horizontal / x axis) color coded by kind of disaster.
+
+#### Q1 (d) Put your answer in a github repo. Include your web scraping and plotting code. In your readme, describe your plot to a layman.
