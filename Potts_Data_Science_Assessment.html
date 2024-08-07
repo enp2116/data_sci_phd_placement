@@ -362,19 +362,80 @@ display: none;
 disasters: <a href="https://en.wikipedia.org/wiki/List_of_natural_disasters_by_death_toll" class="uri">https://en.wikipedia.org/wiki/List_of_natural_disasters_by_death_toll</a>
 for the tables of the 20th and 21st century all cause disasters into a
 data frame, tibble or pandas data frame.</h4>
-<pre class="r"><code>url = &quot;https://en.wikipedia.org/wiki/List_of_natural_disasters_by_death_toll&quot;
+<pre class="r"><code>url = &quot;https://en.wikipedia.org/wiki/List_of_natural_disasters_by_death_toll&quot; 
 
 disaster_tab = read_html(url) %&gt;% 
   html_table()
 
-tw_cent = disaster_tab[[3]]
+tw_cent = disaster_tab[[3]] %&gt;% janitor::clean_names() %&gt;% as.data.frame()
 
-twfirst_cent = disaster_tab[[4]]</code></pre>
+twfirst_cent = disaster_tab[[4]] %&gt;% janitor::clean_names() %&gt;% as.data.frame()</code></pre>
 </div>
 <div id="q1-b-convert-the-death-toll-to-numbers-using-the-midpoints-when-a-range-is-given-and-the-bound-when-an-upper-or-lower-bound-is-given-example-20000-converts-to-20000." class="section level4">
 <h4>Q1 (b) Convert the death toll to numbers using the midpoints when a
 range is given and the bound when an upper or lower bound is given
 (example 20,000+ converts to 20000).</h4>
+<p>To clean the death_toll variable, we remove any extraneous elements,
+such as commas, a citation [#], +, or (estimate), as well as extracting
+the midpoint from any ranges.</p>
+<pre class="r"><code># cleaning process for 20th century df
+tw_cent2 = tw_cent %&gt;% 
+  mutate(orig_death_toll = death_toll) %&gt;% # create copy of death toll to check against
+  mutate(death_toll = str_replace_all(death_toll, &quot;[,+]&quot;, &quot;&quot;)) %&gt;% # remove , and +
+  mutate(death_toll = gsub(&quot;\\[[^][]*]&quot;, &quot;&quot;, death_toll)) %&gt;% # remove [#]
+  mutate(lower_bound = stri_extract_first_regex(death_toll, &quot;[0-9]+&quot;)) %&gt;% # separate ranges into upper and lower bounds
+  mutate(upper_bound = stri_extract_last_regex(death_toll, &quot;[0-9]+&quot;)) %&gt;% 
+  mutate(midpoint = (as.numeric(upper_bound) + as.numeric(lower_bound))/2) %&gt;% # calculate midpoint
+  mutate(death_toll = ifelse(lower_bound == upper_bound, lower_bound, midpoint)) %&gt;% select(-c(&quot;upper_bound&quot;, &quot;lower_bound&quot;, &quot;midpoint&quot;)) # condense clean death_toll into one desired column
+
+head(tw_cent2)</code></pre>
+<pre><code>##   year death_toll                                event countries_affected
+## 1 1900       9000             1900 Galveston hurricane      United States
+## 2 1901       9500 1901 eastern United States heat wave      United States
+## 3 1902      29000         1902 eruption of Mount Pelée         Martinique
+## 4 1903       3500            1903 Manzikert earthquake             Turkey
+## 5 1904        400              1904 Sichuan earthquake              China
+## 6 1905      20000               1905 Kangra earthquake              India
+##                type         date orig_death_toll
+## 1  Tropical cyclone  September 9    6,000–12,000
+## 2         Heat wave    June–July           9,500
+## 3 Volcanic eruption April–August          29,000
+## 4        Earthquake     April 28           3,500
+## 5        Earthquake    August 30             400
+## 6        Earthquake      April 4         20,000+</code></pre>
+<pre class="r"><code># cleaning process for 21th century df
+twfirst_cent2 = twfirst_cent %&gt;% 
+  mutate(orig_death_toll = death_toll) %&gt;% # create copy of death toll to check against
+  mutate(death_toll = str_replace_all(death_toll, &quot;[,+]&quot;, &quot;&quot;)) %&gt;% # remove , and +
+  mutate(death_toll = gsub(&quot;\\s*\\([^\\)]+\\)&quot;, &quot;&quot;, death_toll)) %&gt;% # remove (estimate)
+  mutate(death_toll = gsub(&quot;\\[[^][]*]&quot;, &quot;&quot;, death_toll)) %&gt;% # remove [#]
+  mutate(lower_bound = stri_extract_first_regex(death_toll, &quot;[0-9]+&quot;)) %&gt;% # separate ranges into upper and lower bounds
+  mutate(upper_bound = stri_extract_last_regex(death_toll, &quot;[0-9]+&quot;)) %&gt;% 
+  mutate(midpoint = (as.numeric(upper_bound) + as.numeric(lower_bound))/2) %&gt;% # calculate midpoint
+  mutate(death_toll = ifelse(lower_bound == upper_bound, lower_bound, midpoint)) %&gt;% select(-c(&quot;upper_bound&quot;, &quot;lower_bound&quot;, &quot;midpoint&quot;)) # condense clean death_toll into one desired column
+
+head(twfirst_cent2)</code></pre>
+<pre><code>##   year death_toll                                    event
+## 1 2001      16914                  2001 Gujarat earthquake
+## 2 2002       1200              2002 Hindu Kush earthquakes
+## 3 2003      72000                  2003 European heat wave
+## 4 2004     227898 2004 Indian Ocean earthquake and tsunami
+## 5 2005    86675.5                  2005 Kashmir earthquake
+## 6 2006     5763.5               2006 Yogyakarta earthquake
+##                                         countries_affected                type
+## 1                                                    India          Earthquake
+## 2                                              Afghanistan          Earthquake
+## 3                                                   Europe           Heat Wave
+## 4 Indonesia, Sri Lanka, India, Thailand, Maldives, Somalia Earthquake, Tsunami
+## 5                                          India, Pakistan          Earthquake
+## 6                                                Indonesia          Earthquake
+##            date orig_death_toll
+## 1    January 26   13,805–20,023
+## 2      March 25           1,200
+## 3 July – August          72,000
+## 4   December 26         227,898
+## 5     October 8   86,000–87,351
+## 6        May 26     5,749–5,778</code></pre>
 </div>
 <div id="q1-c-merge-the-20th-and-21st-century-data-frames-and-plot-the-death-toll-vertical-y-axis-by-year-horizontal-x-axis-color-coded-by-kind-of-disaster." class="section level4">
 <h4>Q1 (c) Merge the 20th and 21st century data frames and plot the

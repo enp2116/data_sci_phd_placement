@@ -9,30 +9,54 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(rvest)
-library(httr)
-
+library(stringr)
+library(stringi)
 ```
 
 ### Question 1
 #### Q1 (a) Using R or Python scrape the wikipedia page on natural disasters: https://en.wikipedia.org/wiki/List_of_natural_disasters_by_death_toll for the tables of the 20th and 21st century all cause disasters into a data frame, tibble or pandas data frame.
 
 ```{r}
-url = "https://en.wikipedia.org/wiki/List_of_natural_disasters_by_death_toll"
+url = "https://en.wikipedia.org/wiki/List_of_natural_disasters_by_death_toll" 
 
 disaster_tab = read_html(url) %>% 
   html_table()
 
-tw_cent = disaster_tab[[3]]
+tw_cent = disaster_tab[[3]] %>% janitor::clean_names() %>% as.data.frame()
 
-twfirst_cent = disaster_tab[[4]]
+twfirst_cent = disaster_tab[[4]] %>% janitor::clean_names() %>% as.data.frame()
 ```
 
 
 #### Q1 (b) Convert the death toll to numbers using the midpoints when a range is given and the bound when an upper or lower bound is given (example 20,000+ converts to 20000).
+
+To clean the death_toll variable, we remove any extraneous elements, such as commas, a citation [#], +, or (estimate), as well as extracting the midpoint from any ranges.
 ```{r}
+# cleaning process for 20th century df
+tw_cent2 = tw_cent %>% 
+  mutate(orig_death_toll = death_toll) %>% # create copy of death toll to check against
+  mutate(death_toll = str_replace_all(death_toll, "[,+]", "")) %>% # remove , and +
+  mutate(death_toll = gsub("\\[[^][]*]", "", death_toll)) %>% # remove [#]
+  mutate(lower_bound = stri_extract_first_regex(death_toll, "[0-9]+")) %>% # separate ranges into upper and lower bounds
+  mutate(upper_bound = stri_extract_last_regex(death_toll, "[0-9]+")) %>% 
+  mutate(midpoint = (as.numeric(upper_bound) + as.numeric(lower_bound))/2) %>% # calculate midpoint
+  mutate(death_toll = ifelse(lower_bound == upper_bound, lower_bound, midpoint)) %>% select(-c("upper_bound", "lower_bound", "midpoint")) # condense clean death_toll into one desired column
 
+head(tw_cent2)
+
+# cleaning process for 21th century df
+twfirst_cent2 = twfirst_cent %>% 
+  mutate(orig_death_toll = death_toll) %>% # create copy of death toll to check against
+  mutate(death_toll = str_replace_all(death_toll, "[,+]", "")) %>% # remove , and +
+  mutate(death_toll = gsub("\\s*\\([^\\)]+\\)", "", death_toll)) %>% # remove (estimate)
+  mutate(death_toll = gsub("\\[[^][]*]", "", death_toll)) %>% # remove [#]
+  mutate(lower_bound = stri_extract_first_regex(death_toll, "[0-9]+")) %>% # separate ranges into upper and lower bounds
+  mutate(upper_bound = stri_extract_last_regex(death_toll, "[0-9]+")) %>% 
+  mutate(midpoint = (as.numeric(upper_bound) + as.numeric(lower_bound))/2) %>% # calculate midpoint
+  mutate(death_toll = ifelse(lower_bound == upper_bound, lower_bound, midpoint)) %>% select(-c("upper_bound", "lower_bound", "midpoint")) # condense clean death_toll into one desired column
+
+head(twfirst_cent2)
 ```
-
 
 #### Q1 (c) Merge the 20th and 21st century data frames and plot the death toll (vertical / y axis) by year (horizontal / x axis) color coded by kind of disaster.
 
