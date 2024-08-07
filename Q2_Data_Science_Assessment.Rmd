@@ -1,0 +1,73 @@
+---
+title: "Q2_Data_Science_Assessment"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(geometry)
+```
+
+
+### Question 2
+Let x and y be vectors of length n. Consider minimizing the loss L(b) = ||y - b x||^2 over b where b is a scalar. (The solution is b = <x, y> / ||x||^2 .) 
+
+First, we have the loss function \[ L(b) = || y - b \cdot x ||^2 \] which is equivalently \( \sum_{i=1}^n (y_i - b \cdot x_i)^2 \)
+
+The gradient is the derivative of \( L(b) \) with respect to \( b \): \[ \frac{dL(b)}{db} = \frac{d}{db} \left({\sum_{i=1}^n (y_i - b \cdot x_i)^2} \right) = \frac{d}{db} \left( \sum_{i=1}^n y_i^2 - 2b \sum_{i=1}^n y_i \cdot x_i + b^2 \sum_{i=1}^n x_i^2 \right)\]
+
+We can simplify to yield the gradient to be:
+\[ \frac{dL(b)}{db} = -2 \sum_{i=1}^n y_i \cdot x_i + 2b \sum_{i=1}^n x_i^2 \] 
+
+We can check that this is correct since we are given the proper solution \(b = \frac{<x, y>} {||x||^2}\). Setting \( \frac{dL(b)}{db} = 0 \) and solving for b gives:
+
+```{r}
+n = 4
+set.seed(4)
+x = rnorm(n, mean = 5, sd = 1)
+x
+y = rnorm(n, mean = 2, sd = 2)
+y
+
+
+# true solution
+b = dot(x, y) / sum(x^2)
+b
+```
+
+
+#### Q2 (a) 
+Write a function in R or python that takes two vectors or numpy vectors and iterates to solve for b using gradient descent. That is, the update
+is: 
+Update(b) = Current value of b - e * Derivative of L with respect to b evaluated at the current value of b
+
+Where e is a user-supplied real number usually called the learning rate or step size.
+
+```{r}
+gradient_descent <- function(x, y, e = 0.001, iterations = 10000) {
+  n <- length(y)
+  b <- 0
+  for (i in 1:iterations) {
+    gradient <- (-2*(sum(x*y) - b*sum(x^2)))
+    b <- b - e*gradient
+    
+  }
+  return(b)
+}
+
+n = 5
+x = rnorm(n, mean = 0, sd = 5)
+x
+y = rnorm(n, mean = 0, sd = 5)
+y
+
+gradient_descent(x, y)
+# true solution
+b = dot(x, y) / sum(x^2)
+b
+```
+
+
+#### Q2 (a) 
+Test your function out on some randomly generated normal vectors where you know the value of b. How does the performance of the algorithm’s depend on e? When does the algorithm fail and why?
