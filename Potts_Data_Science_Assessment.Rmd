@@ -11,6 +11,8 @@ library(tidyverse)
 library(rvest)
 library(stringr)
 library(stringi)
+library(ggbreak)
+library(ggplot2)
 ```
 
 ### Question 1
@@ -18,13 +20,15 @@ library(stringi)
 
 ```{r}
 url = "https://en.wikipedia.org/wiki/List_of_natural_disasters_by_death_toll" 
-
-disaster_tab = read_html(url) %>% 
+disaster_tab = read_html(url) %>% # Parse an html table into df
   html_table()
 
-tw_cent = disaster_tab[[3]] %>% janitor::clean_names() %>% as.data.frame()
+# saving the 20th and 21st tables from the webpage 
+tw_cent = disaster_tab[[3]] %>% 
+  janitor::clean_names()
 
-twfirst_cent = disaster_tab[[4]] %>% janitor::clean_names() %>% as.data.frame()
+twfirst_cent = disaster_tab[[4]] %>% 
+  janitor::clean_names()
 ```
 
 
@@ -60,4 +64,22 @@ head(twfirst_cent2)
 
 #### Q1 (c) Merge the 20th and 21st century data frames and plot the death toll (vertical / y axis) by year (horizontal / x axis) color coded by kind of disaster.
 
-#### Q1 (d) Put your answer in a github repo. Include your web scraping and plotting code. In your readme, describe your plot to a layman.
+We make note that some observations have more than one type, and make the decision to color based on the first type listed. While not ideal to add an axis break for the death toll, the graph was quite difficult to see major trends without doing so for the extreme value of over 2,000,000.
+```{r}
+df = rbind(tw_cent2, twfirst_cent2) %>% # stack vertically
+  mutate(type = str_to_sentence(type)) %>% 
+  mutate(type = gsub("(.*),.*", "\\1", type)) %>% # isolate type
+  mutate(type = as.factor(type)) %>% # fix data types for plotting
+  mutate(death_toll = as.numeric(death_toll))
+
+ggplot(df, aes(x=year, y=death_toll, color=type)) + geom_point() + # scatterplot
+  labs(title = "Deadliest All Cause Natural Disaster per Year", subtitle = "(1900-2024)") + xlab("Year") + ylab("Death Toll") + # aesthetics
+  scale_y_continuous(labels = scales::comma, limits = c(0, 2211252), breaks = c(0, 100000, 200000, 300000, 400000, 500000, 2211250)) + scale_y_break(c(500000, 2211249), scales = 0.15) +
+  theme(axis.text.y.right = element_blank(),
+        axis.ticks.y.right = element_blank(),
+        axis.title.y.right = element_blank()) + 
+  scale_x_continuous(limits = c(1900, 2024), 
+                     breaks = seq(1900, 2024, by = 50)) + 
+  guides(color = guide_legend(title = "Disaster Type")) 
+
+```
