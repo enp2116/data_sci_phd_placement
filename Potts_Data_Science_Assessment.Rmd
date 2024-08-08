@@ -1,18 +1,24 @@
 ---
-title: "Potts_Data_Science_Assessment"
-output: html_document
+title: "Potts Data Science Assessment"
+output: pdf_document
 date: "`r Sys.Date()`"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, options(scipen = 999))
 
+## Q1
 library(tidyverse)
 library(rvest)
 library(stringr)
 library(stringi)
 library(ggbreak)
 library(ggplot2)
+
+## Q2
+library(dplyr)
+library(geometry)
+library(patchwork)
 ```
 
 ### Question 1
@@ -27,9 +33,11 @@ disaster_tab = read_html(url) %>% # Parse an html table into df
 # saving the 20th and 21st tables from the webpage 
 tw_cent = disaster_tab[[3]] %>% 
   janitor::clean_names()
+head(tw_cent)
 
 twfirst_cent = disaster_tab[[4]] %>% 
   janitor::clean_names()
+head(twfirst_cent)
 ```
 
 
@@ -43,10 +51,11 @@ tw_cent2 = tw_cent %>%
   mutate(orig_death_toll = death_toll) %>% # create copy of death toll to check against
   mutate(death_toll = str_replace_all(death_toll, "[,+]", "")) %>% # remove , and +
   mutate(death_toll = gsub("\\[[^][]*]", "", death_toll)) %>% # remove [#]
-  mutate(lower_bound = stri_extract_first_regex(death_toll, "[0-9]+")) %>% # separate ranges into upper and lower bounds
-  mutate(upper_bound = stri_extract_last_regex(death_toll, "[0-9]+")) %>% 
+  mutate(lower_bound = stri_extract_first_regex(death_toll, "[0-9]+")) %>% 
+  mutate(upper_bound = stri_extract_last_regex(death_toll, "[0-9]+")) %>% # separate ranges
   mutate(midpoint = (as.numeric(upper_bound) + as.numeric(lower_bound))/2) %>% # calculate midpoint
-  mutate(death_toll = ifelse(lower_bound == upper_bound, lower_bound, midpoint)) %>% select(-c("upper_bound", "lower_bound", "midpoint")) # condense clean death_toll into one desired column
+  mutate(death_toll = ifelse(lower_bound == upper_bound, lower_bound, midpoint)) %>% 
+  select(-c("upper_bound", "lower_bound", "midpoint")) # condense clean death_toll
 
 head(tw_cent2)
 
@@ -56,10 +65,11 @@ twfirst_cent2 = twfirst_cent %>%
   mutate(death_toll = str_replace_all(death_toll, "[,+]", "")) %>% # remove , and +
   mutate(death_toll = gsub("\\s*\\([^\\)]+\\)", "", death_toll)) %>% # remove (estimate)
   mutate(death_toll = gsub("\\[[^][]*]", "", death_toll)) %>% # remove [#]
-  mutate(lower_bound = stri_extract_first_regex(death_toll, "[0-9]+")) %>% # separate ranges into upper and lower bounds
-  mutate(upper_bound = stri_extract_last_regex(death_toll, "[0-9]+")) %>% 
+  mutate(lower_bound = stri_extract_first_regex(death_toll, "[0-9]+")) %>% # separate ranges
+  mutate(upper_bound = stri_extract_last_regex(death_toll, "[0-9]+")) %>%
   mutate(midpoint = (as.numeric(upper_bound) + as.numeric(lower_bound))/2) %>% # calculate midpoint
-  mutate(death_toll = ifelse(lower_bound == upper_bound, lower_bound, midpoint)) %>% select(-c("upper_bound", "lower_bound", "midpoint")) # condense clean death_toll into one desired column
+  mutate(death_toll = ifelse(lower_bound == upper_bound, lower_bound, midpoint)) %>% 
+  select(-c("upper_bound", "lower_bound", "midpoint")) # condense clean death_toll
 
 head(twfirst_cent2)
 ```
@@ -67,7 +77,7 @@ head(twfirst_cent2)
 #### Q1 (c) 
 Merge the 20th and 21st century data frames and plot the death toll (vertical / y axis) by year (horizontal / x axis) color coded by kind of disaster.
 
-We make note that some observations have more than one type, and make the decision to color based on the first type listed. While not ideal to add an axis break for the death toll, the graph was quite difficult to see major trends without doing so for the extreme value of over 2,000,000.
+We make note that some observations have more than one type, and make the decision to color based on the first type listed. While not ideal to add an axis break for the death toll, the graph was difficult to see major trends without doing so for the extreme value of over 2,000,000. Full layman description of the plot is in the README file.
 ```{r}
 df = rbind(tw_cent2, twfirst_cent2) %>% # stack vertically
   mutate(type = str_to_sentence(type)) %>% 
@@ -76,8 +86,13 @@ df = rbind(tw_cent2, twfirst_cent2) %>% # stack vertically
   mutate(death_toll = as.numeric(death_toll))
 
 ggplot(df, aes(x=year, y=death_toll, color=type)) + geom_point() + # scatterplot
-  labs(title = "Deadliest All Cause Natural Disaster per Year", subtitle = "(1900-2024)") + xlab("Year") + ylab("Death Toll") + # aesthetics
-  scale_y_continuous(labels = scales::comma, limits = c(0, 2211252), breaks = c(0, 100000, 200000, 300000, 400000, 500000, 2211250)) + scale_y_break(c(500000, 2211249), scales = 0.15) +
+  labs(title = "Deadliest All Cause Natural Disaster per Year", subtitle = "(1900-2024)") + 
+  xlab("Year") + ylab("Death Toll") + # aesthetics
+  scale_y_continuous(labels = scales::comma, 
+                     limits = c(0, 2211252), 
+                     breaks = c(0, 100000, 200000, 300000, 
+                                400000, 500000, 2211250)) +
+  scale_y_break(c(500000, 2211249), scales = 0.15) +
   theme(axis.text.y.right = element_blank(),
         axis.ticks.y.right = element_blank(),
         axis.title.y.right = element_blank()) + 
@@ -86,3 +101,92 @@ ggplot(df, aes(x=year, y=death_toll, color=type)) + geom_point() + # scatterplot
   guides(color = guide_legend(title = "Disaster Type")) 
 
 ```
+
+
+### Question 2
+Let x and y be vectors of length n. Consider minimizing the loss L(b) = ||y - b x||^2 over b where b is a scalar. (The solution is b = <x, y> / ||x||^2 .) 
+
+First, we have the loss function \[ L(b) = || y - b \cdot x ||^2 \] which is equivalently \( \sum_{i=1}^n (y_i - b \cdot x_i)^2 \)
+
+The gradient is the derivative of \( L(b) \) with respect to \( b \): \[ \frac{dL(b)}{db} = \frac{d}{db} \left({\sum_{i=1}^n (y_i - b \cdot x_i)^2} \right) = \frac{d}{db} \left( \sum_{i=1}^n y_i^2 - 2b \sum_{i=1}^n y_i \cdot x_i + b^2 \sum_{i=1}^n x_i^2 \right)\]
+
+We can simplify to yield the gradient to be:
+\[ \frac{dL(b)}{db} = -2 \sum_{i=1}^n y_i \cdot x_i + 2b \sum_{i=1}^n x_i^2 \] 
+
+We can check that this is correct since we are given the proper solution \(b = \frac{<x, y>} {||x||^2}\). Setting \( \frac{dL(b)}{db} = 0 \) and solving for b gives: \( \frac{\sum_{i=1}^n y_i \cdot x_i} { \sum_{i=1}^n x_i^2}= b \)
+
+#### Q2 (a) 
+Write a function in R or python that takes two vectors or numpy vectors and iterates to solve for b using gradient descent. That is, the update is: Update(b) = Current value of b - e * Derivative of L with respect to b evaluated at the current value of b. Where e is a user-supplied real number usually called the learning rate or step size.
+
+```{r}
+gradient_descent <- function(x, y, e, iterations) {
+  n <- length(x) # length of vector
+  b <- 0 # starting value
+  for (i in 1:iterations) {
+    gradient <- -2*(sum(x*y) - b*sum(x^2)) # derived above
+    b <- b - e*gradient
+  }
+  return(b)
+}
+
+# a random set of standard normal vectors of length 7
+x = rnorm(7)
+y = rnorm(7)
+
+# check that b_est matches true solution (reasonable e chosen)
+b_est = gradient_descent(x, y, e = 0.005, iterations = 2000)
+b_est
+
+# true solution
+b = dot(x, y) / sum(x^2)
+b
+```
+
+
+#### Q2 (b) 
+Test your function out on some randomly generated normal vectors where you know the value of b. How does the performance of the algorithm’s depend on e? When does the algorithm fail and why?
+
+Note that we set the number of iterations to 2000 (as this specification was sufficient for the algorithm to converge when an appropriate e was chosen) and that we are looking at standard normal vectors for simplicity.
+
+The performance of the algorithm depends on the learning rate (e) such that the minimum loss is achieved in a range of e values, before which the loss is minimally higher and after which the loss exponentially increases to infinity. For example 1, where we generated x and y from a standard normal distribution of length 3, the well-behaved range of e is between 0.00068 and 0.17. When our learning rate is too large (>0.17 in this example), the algorithm is overshooting the minima of the loss function and we never converge to the true optimal value of b. The exact range of appropriate learning rate (and the minimal loss value achieved when the algorithm converges) is dependent on the details of the random vectors which were chosen. However, the general trend described previously holds for examples 2 and 3, where e>0.24 and e>0.076 are too large, respectively.
+
+```{r, warning = FALSE, echo = FALSE}
+plot_fun <- function(seed, n, xlim = 0.25, title) {
+  
+  set.seed(seed) # set seed for reproducibility of plots
+  e = seq(0, 0.25, by = 0.00001) # learning rates we want to plot
+  x = rnorm(n) # random vectors from a standard normal distribution of length n
+  y = rnorm(n)
+  b_est = gradient_descent(x, y, e, iterations = 1000)
+  loss = sum(y^2) - 2*b_est*dot(x, y) + (b_est^2)*sum(x^2) # expansion of original loss function equation
+  df = cbind(e, loss) %>% as.data.frame() 
+
+  plot = df %>% ggplot(., aes(x = e, y = loss)) +
+    geom_point(size = 0.5) +
+    labs(title = title, 
+         x = "Learning Rate (e)",
+         y = expression(Loss~L(hat(b)))) +
+    theme_minimal() + scale_y_continuous(limits = c(0, 15)) + scale_x_continuous(limits = c(0, xlim))
+  
+  # return the plot
+  return(plot)
+}
+
+# side-by-side plots of three random examples (adjusted to reasonable dimensions to see trends of interest)
+plot_fun(500, 3, 0.2, title = "Ex. 1) Length = 3") + plot_fun(55, 5, 0.23, title = "Ex. 2) Length = 5") + plot_fun(4, 10, 0.08, title = "Ex. 3) Length = 10") + plot_annotation(title = "Learning Rate vs. Loss", subtitle = "(for randomly generated standard normal vectors with varying lengths)")
+```
+
+```{r, include = FALSE}
+# getting details on example 1
+set.seed(500)
+e = seq(0, 0.25, by = 0.00001)
+n = 3
+x = rnorm(n)
+y = rnorm(n)
+  
+b_est = gradient_descent(x, y, e, iterations = 1000)
+loss = sum(y^2) - 2*b_est*dot(x, y) + (b_est^2)*sum(x^2)
+df = cbind(e, loss) %>% as.data.frame() 
+```
+
+
